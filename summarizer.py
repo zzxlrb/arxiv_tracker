@@ -74,13 +74,26 @@ def summarize_paper(paper: dict) -> dict:
 
     paper["relevance_score"] = _parse_score(summary)
 
+    # Remove preamble before the first numbered item
+    # LLM may output "**1. Core idea**" or "1. Core idea"
+    first_num = re.search(r"\n\s*\*{0,2}1\.\s", summary)
+    if first_num:
+        summary = summary[first_num.start():].strip()
+
     # Split summary into sections by numbered lines
-    sections = re.split(r"\n\s*\d+\.\s*", summary)
+    sections = re.split(r"\n\s*\*{0,2}\d+\.\s*", summary)
     sections = [s.strip() for s in sections if s.strip()]
 
-    paper["core_idea"] = sections[0] if len(sections) > 0 else summary
-    paper["key_method"] = sections[1] if len(sections) > 1 else ""
-    paper["why_matters"] = sections[2] if len(sections) > 2 else ""
+    def _strip_header(text: str) -> str:
+        """Remove the numbered header line like '**1. Core idea**' from content."""
+        lines = text.strip().split("\n", 1)
+        if len(lines) > 1:
+            return lines[1].strip()
+        return text.strip()
+
+    paper["core_idea"] = _strip_header(sections[0]) if len(sections) > 0 else summary
+    paper["key_method"] = _strip_header(sections[1]) if len(sections) > 1 else ""
+    paper["why_matters"] = _strip_header(sections[2]) if len(sections) > 2 else ""
 
     return paper
 
