@@ -21,6 +21,7 @@ DEEPSEEK_MODEL = get_env("DEEPSEEK_MODEL", "deepseek-chat")
 
 ARXIV_MAX_RESULTS = get_int("ARXIV_MAX_RESULTS", 10)
 ARXIV_LOOKBACK_DAYS = get_int("ARXIV_LOOKBACK_DAYS", 7)
+DIGEST_TOP_N = get_int("DIGEST_TOP_N", 5)
 
 def get_bool(key: str, default: bool) -> bool:
     val = os.getenv(key, "").lower()

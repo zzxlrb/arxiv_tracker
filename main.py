@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 
+from config import DIGEST_TOP_N
 from fetcher import fetch_papers
 from dedup import filter_new_papers, mark_sent
 from summarizer import summarize_papers
@@ -55,15 +56,15 @@ def main() -> None:
     papers = summarize_papers(papers)
 
     papers.sort(key=lambda p: p["relevance_score"], reverse=True)
-    top5 = papers[:5]
-    scores = [p["relevance_score"] for p in top5]
-    titles = [p["title"][:80] for p in top5]
-    logger.info("Top 5 papers: %s", list(zip(titles, scores)))
+    top_n = papers[:DIGEST_TOP_N]
+    scores = [p["relevance_score"] for p in top_n]
+    titles = [p["title"][:80] for p in top_n]
+    logger.info("Top %d papers: %s", DIGEST_TOP_N, list(zip(titles, scores)))
 
-    mark_sent(top5)
+    mark_sent(top_n)
 
     try:
-        send_digest(top5)
+        send_digest(top_n)
     except Exception as e:
         logger.error("Failed to send email: %s", e)
         sys.exit(1)
