@@ -7,12 +7,23 @@ from typing import List
 from config import (
     SMTP_SERVER,
     SMTP_PORT,
+    SMTP_USE_SSL,
     SENDER_EMAIL,
     SENDER_AUTH_CODE,
     RECEIVER_EMAIL,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _create_smtp():
+    """Create SMTP connection. Uses SSL on port 465 or STARTTLS on port 587."""
+    if SMTP_USE_SSL:
+        return smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=30)
+    else:
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
+        server.starttls()
+        return server
 
 
 def _render_html(papers: List[dict]) -> str:
@@ -61,7 +72,7 @@ def send_digest(papers: List[dict]) -> None:
     msg["To"] = RECEIVER_EMAIL
 
     logger.info("Sending digest to %s with %d papers", RECEIVER_EMAIL, len(papers))
-    server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
+    server = _create_smtp()
     server.login(SENDER_EMAIL, SENDER_AUTH_CODE)
     server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
     server.quit()
@@ -85,7 +96,7 @@ def send_empty_digest() -> None:
     msg["From"] = SENDER_EMAIL
     msg["To"] = RECEIVER_EMAIL
 
-    server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
+    server = _create_smtp()
     server.login(SENDER_EMAIL, SENDER_AUTH_CODE)
     server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
     server.quit()

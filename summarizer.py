@@ -1,5 +1,6 @@
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from openai import OpenAI
 
@@ -12,30 +13,28 @@ client = OpenAI(
     base_url=DEEPSEEK_BASE_URL,
 )
 
-PROMPT = """Summarize the following paper for a researcher working on neural mesh generation and automated mesh creation.
+PROMPT = """You are evaluating a paper's relevance to a researcher working on 3D mesh generation, mesh editing, and automated mesh creation using neural methods and AI agents.
 
 Title: {title}
 Authors: {authors}
 Abstract: {abstract}
 
+IMPORTANT: This research is about 3D geometry meshes (triangle meshes, tetrahedral meshes, surface meshes, volumetric meshes used in computer graphics, geometry processing, and finite element analysis). Papers about mesh networks, wireless mesh, data mesh, service mesh, or any non-geometry "mesh" are NOT relevant and should receive a score of 1-3.
+
 Please provide:
 1. Core idea (one sentence)
 2. Key method / technical approach
-3. Why it matters for mesh generation research
-4. Relevance score (1-10)"""
+3. Why it matters for 3D mesh generation/editing research (if not relevant, briefly explain why)
+4. Relevance score (1-10, where 1-3 = not relevant to 3D meshes, 4-6 = tangentially related, 7-10 = directly about 3D mesh generation/editing)"""
 
 
 def _parse_score(text: str) -> int:
-    """Extract relevance score from LLM response. Defaults to 5 if parsing fails."""
-    # Find the line containing "relevance score", take the last number on it.
-    # e.g. "4. Relevance score (1-10): 8" -> nums are [4, 1, 10, 8], take 8.
     for line in text.split("\n"):
         if "relevance score" in line.lower():
             nums = re.findall(r"\d+", line)
             if nums:
                 score = int(nums[-1])
                 return min(max(score, 1), 10)
-    # Fallback: scan lines from bottom for any number 1-10
     for line in reversed(text.strip().split("\n")):
         nums = re.findall(r"\b(\d+)\b", line)
         if nums:
@@ -46,9 +45,14 @@ def _parse_score(text: str) -> int:
     return 5
 
 
+def _strip_header(text: str) -> str:
+    lines = text.strip().split("\n", 1)
+    if len(lines) > 1:
+        return lines[1].strip()
+    return text.strip()
+
+
 def summarize_paper(paper: dict) -> dict:
-    """Call DeepSeek V4 to summarize a paper. Returns paper dict enriched with
-    core_idea, key_method, why_matters, and relevance_score fields."""
     prompt = PROMPT.format(
         title=paper["title"],
         authors=paper["authors"],
@@ -74,22 +78,12 @@ def summarize_paper(paper: dict) -> dict:
 
     paper["relevance_score"] = _parse_score(summary)
 
-    # Remove preamble before the first numbered item
-    # LLM may output "**1. Core idea**" or "1. Core idea"
     first_num = re.search(r"\n\s*\*{0,2}1\.\s", summary)
     if first_num:
         summary = summary[first_num.start():].strip()
 
-    # Split summary into sections by numbered lines
     sections = re.split(r"\n\s*\*{0,2}\d+\.\s*", summary)
     sections = [s.strip() for s in sections if s.strip()]
-
-    def _strip_header(text: str) -> str:
-        """Remove the numbered header line like '**1. Core idea**' from content."""
-        lines = text.strip().split("\n", 1)
-        if len(lines) > 1:
-            return lines[1].strip()
-        return text.strip()
 
     paper["core_idea"] = _strip_header(sections[0]) if len(sections) > 0 else summary
     paper["key_method"] = _strip_header(sections[1]) if len(sections) > 1 else ""
@@ -99,9 +93,14 @@ def summarize_paper(paper: dict) -> dict:
 
 
 def summarize_papers(papers: list[dict]) -> list[dict]:
-    """Summarize all papers. Failed summaries get score 0 and placeholder text."""
-    results = []
-    for paper in papers:
-        logger.info("Summarizing: %s", paper["title"][:80])
-        results.append(summarize_paper(paper))
-    return results
+    logger.info("Summarizing %d papers in parallel", len(papers))
+    index = {p["arxiv_id"]: i for i, p in enumerate(papers)}
+    results = [None] * len(papers)
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(summarize_paper, p): i for i, p in enumerate(papers)}
+        for future in as_completed(futures):
+            i = futures[future]
+            results[i] = future.result()
+
+    return [r for r in results if r is not None]

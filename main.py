@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 
 from fetcher import fetch_papers
@@ -6,17 +7,33 @@ from dedup import filter_new_papers, mark_sent
 from summarizer import summarize_papers
 from mailer import send_digest, send_empty_digest
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+LOG_FILE = os.getenv("LOG_FILE", "")
+QUIET = os.getenv("QUIET", "").lower() in ("1", "true", "yes")
+
+# Suppress noisy library logs
+for lib in ("arxiv", "httpx", "httpcore", "openai"):
+    logging.getLogger(lib).setLevel(logging.WARNING)
+
+if QUIET and LOG_FILE:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        filename=LOG_FILE,
+    )
+elif QUIET:
+    logging.basicConfig(level=logging.WARNING)
+else:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
 logger = logging.getLogger("arxiv_digest")
 
 
 def main() -> None:
     logger.info("=== Research Digest Pipeline Start ===")
 
-    # 1. Fetch papers from arXiv
     papers = fetch_papers()
     logger.info("Fetched %d papers from arXiv", len(papers))
 
@@ -26,7 +43,6 @@ def main() -> None:
         logger.info("=== Pipeline Complete (no papers) ===")
         return
 
-    # 2. Filter out previously sent papers
     papers = filter_new_papers(papers)
     logger.info("After dedup: %d new papers", len(papers))
 
@@ -36,18 +52,16 @@ def main() -> None:
         logger.info("=== Pipeline Complete (all seen) ===")
         return
 
-    # 3. Summarize with DeepSeek V4
     papers = summarize_papers(papers)
 
-    # 4. Sort by relevance, take top 5
     papers.sort(key=lambda p: p["relevance_score"], reverse=True)
     top5 = papers[:5]
-    logger.info("Top 5 papers selected (scores: %s)", [p["relevance_score"] for p in top5])
+    scores = [p["relevance_score"] for p in top5]
+    titles = [p["title"][:80] for p in top5]
+    logger.info("Top 5 papers: %s", list(zip(titles, scores)))
 
-    # 5. Mark top 5 as sent before sending (if send fails, they're still recorded)
     mark_sent(top5)
 
-    # 6. Send email
     try:
         send_digest(top5)
     except Exception as e:
