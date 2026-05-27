@@ -29,6 +29,6 @@ def get_bool(key: str, default: bool) -> bool:
     return val in ("1", "true", "yes")
 
 
-RESEND_API_KEY = get_env("RESEND_API_KEY")
+BREVO_API_KEY = get_env("BREVO_API_KEY")
 SENDER_EMAIL = get_env("SENDER_EMAIL")
 RECEIVER_EMAIL = get_env("RECEIVER_EMAIL")

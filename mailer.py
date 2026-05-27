@@ -4,11 +4,11 @@ from typing import List
 
 import httpx
 
-from config import RESEND_API_KEY, SENDER_EMAIL, RECEIVER_EMAIL
+from config import BREVO_API_KEY, SENDER_EMAIL, RECEIVER_EMAIL
 
 logger = logging.getLogger(__name__)
 
-RESEND_URL = "https://api.resend.com/emails"
+BREVO_URL = "https://api.brevo.com/v3/smtp/email"
 
 
 def _render_html(papers: List[dict]) -> str:
@@ -49,26 +49,26 @@ def _render_html(papers: List[dict]) -> str:
 
 
 def _send_email(subject: str, html: str) -> None:
-    """Send email via Resend API (HTTPS, works behind firewalls)."""
+    """Send email via Brevo API (HTTPS, works behind firewalls)."""
     response = httpx.post(
-        RESEND_URL,
+        BREVO_URL,
         headers={
-            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "api-key": BREVO_API_KEY,
             "Content-Type": "application/json",
         },
         json={
-            "from": f"arXiv Digest <{SENDER_EMAIL}>",
-            "to": RECEIVER_EMAIL,
+            "sender": {"name": "arXiv Digest", "email": SENDER_EMAIL},
+            "to": [{"email": RECEIVER_EMAIL}],
             "subject": subject,
-            "html": html,
+            "htmlContent": html,
         },
         timeout=30,
     )
 
-    if response.status_code != 200:
-        logger.error("Resend API error %d: %s", response.status_code, response.text)
-        raise RuntimeError(f"Resend API returned {response.status_code}")
-    logger.info("Email sent via Resend: %s", response.json().get("id", ""))
+    if response.status_code not in (200, 201):
+        logger.error("Brevo API error %d: %s", response.status_code, response.text)
+        raise RuntimeError(f"Brevo API returned {response.status_code}")
+    logger.info("Email sent via Brevo: %s", response.json().get("messageId", ""))
 
 
 def send_digest(papers: List[dict]) -> None:
