@@ -13,19 +13,19 @@ client = OpenAI(
     base_url=DEEPSEEK_BASE_URL,
 )
 
-PROMPT = """You are evaluating a paper's relevance to a researcher working on 3D mesh generation, mesh editing, and automated mesh creation using neural methods and AI agents.
+PROMPT = """你是一位研究者的论文助手，研究者专注于 3D 网格生成（mesh generation）、网格编辑（mesh editing）以及使用神经网络和 AI Agent 进行自动化网格创建。
 
-Title: {title}
-Authors: {authors}
-Abstract: {abstract}
+标题：{title}
+作者：{authors}
+摘要：{abstract}
 
-IMPORTANT: This research is about 3D geometry meshes (triangle meshes, tetrahedral meshes, surface meshes, volumetric meshes used in computer graphics, geometry processing, and finite element analysis). Papers about mesh networks, wireless mesh, data mesh, service mesh, or any non-geometry "mesh" are NOT relevant and should receive a score of 1-3.
+请注意：研究关注的是计算机图形学和几何处理中的 3D 几何网格（三角网格、四面体网格、曲面网格等）。如果你的内容是关于无线 mesh 网络、data mesh、service mesh 或其他非几何领域的 "mesh"，则不应被推荐，打分应该为 1-3 分。
 
-Please provide:
-1. Core idea (one sentence)
-2. Key method / technical approach
-3. Why it matters for 3D mesh generation/editing research (if not relevant, briefly explain why)
-4. Relevance score (1-10, where 1-3 = not relevant to 3D meshes, 4-6 = tangentially related, 7-10 = directly about 3D mesh generation/editing)"""
+请用中文回答，提供以下信息：
+1. 核心思想（一句话）
+2. 关键技术方法
+3. 对 3D 网格生成/编辑研究的意义（如果不相关请说明原因）
+4. 相关性评分（1-10 分）"""
 
 
 def _parse_score(text: str) -> int:

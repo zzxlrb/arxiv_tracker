@@ -20,13 +20,13 @@ def _render_html(papers: List[dict]) -> str:
         rows.append(f"""
         <div style="margin-bottom:30px; padding-bottom:20px; border-bottom:1px solid #eee;">
             <h2 style="color:#1a1a2e; margin-bottom:8px;">{i}. {p['title']}</h2>
-            <p style="color:#555; margin:4px 0;"><b>Authors:</b> {p['authors']}</p>
-            <p style="margin:4px 0;"><a href="{p['url']}" style="color:#2563eb;">Paper Link</a></p>
-            <p style="margin:4px 0;"><b>Relevance:</b> {p['relevance_score']}/10</p>
+            <p style="color:#555; margin:4px 0;"><b>作者：</b> {p['authors']}</p>
+            <p style="margin:4px 0;"><a href="{p['url']}" style="color:#2563eb;">论文链接</a></p>
+            <p style="margin:4px 0;"><b>相关性：</b> {p['relevance_score']}/10</p>
             <div style="margin-top:12px; padding:12px; background:#f8f9fa; border-radius:6px;">
-                <p style="margin:4px 0;"><b>Core Idea:</b> {p['core_idea']}</p>
-                <p style="margin:4px 0;"><b>Key Method:</b> {p['key_method']}</p>
-                <p style="margin:4px 0;"><b>Why It Matters:</b> {p['why_matters']}</p>
+                <p style="margin:4px 0;"><b>核心思想：</b> {p['core_idea']}</p>
+                <p style="margin:4px 0;"><b>关键方法：</b> {p['key_method']}</p>
+                <p style="margin:4px 0;"><b>研究意义：</b> {p['why_matters']}</p>
             </div>
         </div>
         """)
@@ -36,8 +36,8 @@ def _render_html(papers: List[dict]) -> str:
     <head><meta charset="utf-8"></head>
     <body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif; max-width:700px; margin:0 auto; padding:20px; background:#fff;">
         <div style="background:#1a1a2e; color:#fff; padding:20px; border-radius:8px; margin-bottom:24px;">
-            <h1 style="margin:0; font-size:22px;">Daily arXiv Digest — Mesh Generation</h1>
-            <p style="margin:8px 0 0; opacity:0.8; font-size:14px;">{date_str} — Top {len(papers)} Papers</p>
+            <h1 style="margin:0; font-size:22px;">每日 arXiv 速递 — 网格生成</h1>
+            <p style="margin:8px 0 0; opacity:0.8; font-size:14px;">{date_str} — Top {len(papers)} 篇论文</p>
         </div>
         {"".join(rows)}
         <p style="color:#999; font-size:12px; margin-top:30px; text-align:center;">
@@ -74,7 +74,7 @@ def _send_email(subject: str, html: str) -> None:
 def send_digest(papers: List[dict]) -> None:
     """Render and send the HTML email digest via Resend."""
     html = _render_html(papers)
-    subject = f"[arXiv Digest] Neural Mesh Generation — {datetime.now().strftime('%Y-%m-%d')}"
+    subject = f"[arXiv 速递] 网格生成 — {datetime.now().strftime('%Y-%m-%d')}"
     logger.info("Sending digest to %s with %d papers", RECEIVER_EMAIL, len(papers))
     _send_email(subject, html)
 
@@ -85,11 +85,11 @@ def send_empty_digest() -> None:
     <html>
     <head><meta charset="utf-8"></head>
     <body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif; max-width:500px; margin:0 auto; padding:20px;">
-        <h2>No new papers today</h2>
-        <p>arXiv had no new mesh generation papers matching your queries in the past 7 days.</p>
+        <h2>今日无新论文</h2>
+        <p>过去 7 天内 arXiv 没有新增匹配你的关键词的网格生成论文。</p>
         <p style="color:#999;">— Research Digest Pipeline, {datetime.now().strftime('%Y-%m-%d')}</p>
     </body>
     </html>
     """
-    subject = f"[arXiv Digest] No New Papers — {datetime.now().strftime('%Y-%m-%d')}"
+    subject = f"[arXiv Digest] 今日无新论文 — {datetime.now().strftime('%Y-%m-%d')}"
     _send_email(subject, html)
