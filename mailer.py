@@ -1,29 +1,14 @@
 import logging
-import smtplib
-from email.mime.text import MIMEText
 from datetime import datetime
 from typing import List
 
-from config import (
-    SMTP_SERVER,
-    SMTP_PORT,
-    SMTP_USE_SSL,
-    SENDER_EMAIL,
-    SENDER_AUTH_CODE,
-    RECEIVER_EMAIL,
-)
+import httpx
+
+from config import RESEND_API_KEY, SENDER_EMAIL, RECEIVER_EMAIL
 
 logger = logging.getLogger(__name__)
 
-
-def _create_smtp():
-    """Create SMTP connection. Uses SSL on port 465 or STARTTLS on port 587."""
-    if SMTP_USE_SSL:
-        return smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=30)
-    else:
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
-        server.starttls()
-        return server
+RESEND_URL = "https://api.resend.com/emails"
 
 
 def _render_html(papers: List[dict]) -> str:
@@ -63,24 +48,39 @@ def _render_html(papers: List[dict]) -> str:
     """
 
 
-def send_digest(papers: List[dict]) -> None:
-    """Render and send the HTML email digest."""
-    html = _render_html(papers)
-    msg = MIMEText(html, "html", "utf-8")
-    msg["Subject"] = f"[arXiv Digest] Neural Mesh Generation — {datetime.now().strftime('%Y-%m-%d')}"
-    msg["From"] = SENDER_EMAIL
-    msg["To"] = RECEIVER_EMAIL
+def _send_email(subject: str, html: str) -> None:
+    """Send email via Resend API (HTTPS, works behind firewalls)."""
+    response = httpx.post(
+        RESEND_URL,
+        headers={
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "from": f"arXiv Digest <{SENDER_EMAIL}>",
+            "to": RECEIVER_EMAIL,
+            "subject": subject,
+            "html": html,
+        },
+        timeout=30,
+    )
 
+    if response.status_code != 200:
+        logger.error("Resend API error %d: %s", response.status_code, response.text)
+        raise RuntimeError(f"Resend API returned {response.status_code}")
+    logger.info("Email sent via Resend: %s", response.json().get("id", ""))
+
+
+def send_digest(papers: List[dict]) -> None:
+    """Render and send the HTML email digest via Resend."""
+    html = _render_html(papers)
+    subject = f"[arXiv Digest] Neural Mesh Generation — {datetime.now().strftime('%Y-%m-%d')}"
     logger.info("Sending digest to %s with %d papers", RECEIVER_EMAIL, len(papers))
-    server = _create_smtp()
-    server.login(SENDER_EMAIL, SENDER_AUTH_CODE)
-    server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
-    server.quit()
-    logger.info("Digest sent successfully")
+    _send_email(subject, html)
 
 
 def send_empty_digest() -> None:
-    """Send a 'no new papers' notification."""
+    """Send a 'no new papers' notification via Resend."""
     html = f"""
     <html>
     <head><meta charset="utf-8"></head>
@@ -91,13 +91,5 @@ def send_empty_digest() -> None:
     </body>
     </html>
     """
-    msg = MIMEText(html, "html", "utf-8")
-    msg["Subject"] = f"[arXiv Digest] No New Papers — {datetime.now().strftime('%Y-%m-%d')}"
-    msg["From"] = SENDER_EMAIL
-    msg["To"] = RECEIVER_EMAIL
-
-    server = _create_smtp()
-    server.login(SENDER_EMAIL, SENDER_AUTH_CODE)
-    server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
-    server.quit()
-    logger.info("Empty digest sent")
+    subject = f"[arXiv Digest] No New Papers — {datetime.now().strftime('%Y-%m-%d')}"
+    _send_email(subject, html)

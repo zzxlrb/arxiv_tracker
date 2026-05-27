@@ -29,9 +29,6 @@ def get_bool(key: str, default: bool) -> bool:
     return val in ("1", "true", "yes")
 
 
-SMTP_SERVER = get_env("SMTP_SERVER", "smtp.qq.com")
-SMTP_PORT = get_int("SMTP_PORT", 465)
-SMTP_USE_SSL = get_bool("SMTP_USE_SSL", True)
+RESEND_API_KEY = get_env("RESEND_API_KEY")
 SENDER_EMAIL = get_env("SENDER_EMAIL")
-SENDER_AUTH_CODE = get_env("SENDER_AUTH_CODE")
 RECEIVER_EMAIL = get_env("RECEIVER_EMAIL")
