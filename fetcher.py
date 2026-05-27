@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 client = arxiv.Client(page_size=ARXIV_MAX_RESULTS)
 
 QUERIES = [
+    'abs:"mesh generation" AND dataset',
+    'abs:"mesh editing" AND dataset',
     'abs:"mesh generation"',
     'abs:"mesh editing"',
     'abs:"3D mesh"',
